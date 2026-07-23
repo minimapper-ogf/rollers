@@ -38,16 +38,23 @@ export async function handleTimeNew(req: Request): Promise<Response> {
             return Response.json({ error: "Missing or invalid payload parameters" }, { status: 400 });
         }
 
-        // 4. Save Time Record
-        const insertQuery = db.prepare(`
-        INSERT INTO map_times (server_id, user_id, username, map_id, time_ms)
-        VALUES (?, ?, ?, ?, ?);
+        // 4. Upsert Time Record (Only updates if the new time is faster)
+        const upsertQuery = db.prepare(`
+        INSERT INTO map_times (server_id, user_id, username, map_id, time_ms, created_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now'))
+        ON CONFLICT(user_id, map_id) DO UPDATE SET
+            time_ms = excluded.time_ms,
+            username = excluded.username,
+            server_id = excluded.server_id,
+            created_at = datetime('now')
+        WHERE excluded.time_ms < map_times.time_ms;
         `);
-        insertQuery.run(server_id, String(user_id), username, String(map_id), time);
 
-        return Response.json({ success: true, message: "Time recorded successfully" });
-    } catch {
-        return Response.json({ error: "Invalid JSON payload" }, { status: 400 });
+        upsertQuery.run(server_id, String(user_id), username, String(map_id), time);
+
+        return Response.json({ success: true, message: "Time processed successfully" });
+    } catch (err) {
+        return Response.json({ error: "Invalid JSON payload or internal error" }, { status: 400 });
     }
 }
 
