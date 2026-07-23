@@ -43,6 +43,11 @@ CREATE TABLE IF NOT EXISTS map_times (
 );
 `);
 
+// Unique constraint to prevent duplicate times per user per map
+db.exec(`
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_map ON map_times (user_id, map_id);
+`);
+
 // Custom blocks table
 db.exec(`
 CREATE TABLE IF NOT EXISTS blocks (
@@ -74,11 +79,17 @@ CREATE TABLE IF NOT EXISTS maps (
 );
 `);
 
-// --- Auto-Migration Check for Existing app.db ---
+// --- Auto-Migration Checks for Existing app.db ---
 try {
     db.exec(`ALTER TABLE maps ADD COLUMN block_count INTEGER DEFAULT 0;`);
 } catch {
     // Ignored if column already exists
+}
+
+try {
+    db.exec(`CREATE UNIQUE INDEX idx_user_map ON map_times (user_id, map_id);`);
+} catch {
+    // Ignored if index already exists
 }
 
 // Table to log page views
