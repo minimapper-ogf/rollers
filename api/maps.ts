@@ -49,13 +49,39 @@ export async function handleMapNew(req: Request): Promise<Response> {
         if (
             !user_id ||
             !username ||
-            !name ||
-            !gold_time ||
-            !silver_time ||
-            !bronze_time ||
-            !Array.isArray(map_data)
+            typeof name !== "string" ||
+            name.trim().length < 2 ||
+            name.trim().length > 48 ||
+            typeof username !== "string" ||
+            username.length > 64 ||
+            typeof description !== "string" ||
+            description.length > 280 ||
+            !Number.isFinite(Number(gold_time)) ||
+            !Number.isFinite(Number(silver_time)) ||
+            !Number.isFinite(Number(bronze_time)) ||
+            Number(gold_time) <= 0 ||
+            Number(gold_time) >= Number(silver_time) ||
+            Number(silver_time) >= Number(bronze_time) ||
+            !Array.isArray(map_data) ||
+            map_data.length < 1 ||
+            map_data.length > 500
         ) {
             return Response.json({ error: "Missing or invalid payload fields" }, { status: 400 });
+        }
+
+        const validPlacements = map_data.every((placement) =>
+            placement !== null &&
+            typeof placement === "object" &&
+            Number.isInteger(Number(placement.Id)) && Number(placement.Id) > 0 &&
+            Number.isInteger(Number(placement.X)) &&
+            Number.isInteger(Number(placement.Y)) &&
+            Number.isInteger(Number(placement.Z)) &&
+            Number.isInteger(Number(placement.Rotation)) &&
+            Number(placement.Rotation) >= 0 && Number(placement.Rotation) <= 3
+        );
+
+        if (!validPlacements) {
+            return Response.json({ error: "Map placements must have a positive block ID, integer grid coordinates, and rotation from 0 to 3" }, { status: 400 });
         }
 
         const mapDataJson = JSON.stringify(map_data);
@@ -72,11 +98,11 @@ export async function handleMapNew(req: Request): Promise<Response> {
             server_id,
             String(user_id),
             username,
-            name,
+            name.trim(),
             description,
-            gold_time,
-            silver_time,
-            bronze_time,
+            Number(gold_time),
+            Number(silver_time),
+            Number(bronze_time),
             mapDataJson,
             blockCount
         );
